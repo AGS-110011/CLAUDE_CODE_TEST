@@ -1,0 +1,2 @@
+[console_scripts]
+idealista-extractor = idealista_extractor.cli:main
