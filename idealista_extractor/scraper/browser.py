@@ -57,8 +57,17 @@ _STEALTH_JS = """
 
 
 def _is_datadome_page(content: str) -> bool:
-    markers = ["datadome", "dd_referrer", "Please enable JS and disable any ad blocker"]
-    return any(m.lower() in content.lower() for m in markers)
+    # Only match the actual block/challenge page, NOT normal pages that
+    # reference datadome in their JS (which every Idealista page does).
+    markers = [
+        "se ha detectado un uso indebido",
+        "el acceso se ha bloqueado",
+        "interstitial-datadome",
+        "dd_referrer",
+        "Please enable JS and disable any ad blocker",
+    ]
+    lower = content.lower()
+    return any(m.lower() in lower for m in markers)
 
 
 class BrowserSession:
@@ -142,10 +151,16 @@ class BrowserSession:
         page: Page,
         url: str,
         wait_selector: str | None = None,
-        timeout: int = 30_000,
+        timeout: int = 60_000,
     ) -> str:
         """Navigate to URL; return page HTML. Raises on DataDome block."""
         await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+
+        # Give JS-heavy pages extra time to render
+        try:
+            await page.wait_for_load_state("networkidle", timeout=15_000)
+        except Exception:
+            pass  # networkidle timeout is non-fatal; continue with whatever loaded
 
         if wait_selector:
             try:
@@ -159,10 +174,16 @@ class BrowserSession:
             await self._save_debug_snapshot(page, url)
             if self.headful:
                 console.print(
-                    "[bold red]DataDome challenge detected. "
-                    "Please solve it in the browser window, then press ENTER.[/bold red]"
+                    "[bold red]DataDome / block page detected. "
+                    "Wait for the search results to fully load in the browser, "
+                    "then press ENTER.[/bold red]"
                 )
-                input("Press ENTER after solving the challenge...")
+                input("Press ENTER once the listings are visible in the browser...")
+                # Wait for network to settle after manual interaction
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=20_000)
+                except Exception:
+                    pass
                 await self._save_session()
                 content = await page.content()
             else:
