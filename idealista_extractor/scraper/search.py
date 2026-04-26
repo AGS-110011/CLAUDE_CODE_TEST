@@ -9,7 +9,7 @@ from urllib.parse import urlsplit, urlunsplit
 from playwright.async_api import Page
 from rich.console import Console
 
-from ..scraper.browser import BrowserSession
+from ..scraper.browser import BrowserSession, _is_datadome_page
 from ..utils.rate_limit import random_delay
 
 console = Console()
@@ -147,7 +147,35 @@ async def paginate_search(
                     timeout=30_000,
                 )
             except Exception:
-                console.print("  [yellow]Timed out waiting for listing links in DOM[/yellow]")
+                # Check if a silent DataDome challenge appeared mid-pagination
+                current_content = await page.content()
+                if _is_datadome_page(current_content):
+                    if session.headful:
+                        console.print(
+                            f"[bold red]DataDome challenge on page {page_num}. "
+                            "Solve it in the browser window, wait for listings to appear, "
+                            "then press ENTER.[/bold red]"
+                        )
+                        input("Press ENTER once listings are visible...")
+                        await session._save_session()
+                        # Wait again after manual solve
+                        try:
+                            await page.wait_for_function(
+                                "() => document.querySelectorAll('a[href*=\"/inmueble/\"]').length > 0",
+                                timeout=30_000,
+                            )
+                        except Exception:
+                            pass
+                    else:
+                        console.print(
+                            f"  [red]DataDome challenge on page {page_num}. "
+                            "Rerun with --headful to solve it.[/red]"
+                        )
+                        break
+                else:
+                    console.print(
+                        f"  [yellow]Timed out waiting for listings on page {page_num}[/yellow]"
+                    )
 
             # Try DOM query first (works on JS-rendered pages), fall back to HTML regex
             hrefs = await _extract_listing_urls_from_dom(page)
