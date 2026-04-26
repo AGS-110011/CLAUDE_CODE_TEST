@@ -169,8 +169,9 @@ class BrowserSession:
 
         if wait_selector:
             try:
-                await page.wait_for_selector(wait_selector, timeout=timeout)
+                await page.wait_for_selector(wait_selector, timeout=30_000)
             except Exception:
+                # Selector didn't appear — page may still have useful content
                 pass
 
         content = await page.content()

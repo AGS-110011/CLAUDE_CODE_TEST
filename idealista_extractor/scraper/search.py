@@ -103,7 +103,10 @@ async def paginate_search(
             console.print(f"  [cyan]Search page {page_num}[/cyan] → {url[:90]}…")
 
             try:
-                html = await session.navigate(page, url)
+                # Wait for listing cards to appear in the DOM before reading HTML
+                html = await session.navigate(
+                    page, url, wait_selector="article.item"
+                )
             except RuntimeError:
                 raise
             except Exception as exc:
