@@ -140,6 +140,15 @@ async def paginate_search(
                         f"  [green]{listing_type}: found {total} total listings.[/green]"
                     )
 
+            # Wait up to 30 s for at least one listing link to appear in the DOM
+            try:
+                await page.wait_for_function(
+                    "() => document.querySelectorAll('a[href*=\"/inmueble/\"]').length > 0",
+                    timeout=30_000,
+                )
+            except Exception:
+                console.print("  [yellow]Timed out waiting for listing links in DOM[/yellow]")
+
             # Try DOM query first (works on JS-rendered pages), fall back to HTML regex
             hrefs = await _extract_listing_urls_from_dom(page)
             if not hrefs:
