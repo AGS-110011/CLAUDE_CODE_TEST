@@ -3,7 +3,11 @@
     "allow": [
       "Bash(python -m venv .venv)",
       "Bash(py -3 --version)",
-      "Bash(where python*)"
+      "Bash(where python*)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr create --title 'Fix DataDome false-positive detection and improve page load robustness' --body ' *)"
     ]
   }
 }

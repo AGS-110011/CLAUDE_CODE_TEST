@@ -51,7 +51,24 @@ def _parse_total_count(html: str) -> int | None:
 
 def _extract_listing_urls(html: str) -> list[str]:
     """Extract all /inmueble/NNNN/ href values from a search results page."""
-    return re.findall(r'href="(/inmueble/\d+/[^"]*)"', html)
+    # Try double-quoted hrefs first, then single-quoted, then unquoted
+    urls = re.findall(r'href="(/inmueble/\d+/[^"]*)"', html)
+    if not urls:
+        urls = re.findall(r"href='(/inmueble/\d+/[^']*)'", html)
+    if not urls:
+        urls = re.findall(r'href=(/inmueble/\d+/\S+)', html)
+    return urls
+
+
+def _save_debug_html(html: str, listing_type: str, page_num: int) -> None:
+    """Save raw HTML to debug/ so we can inspect what the page returned."""
+    from datetime import datetime
+    from pathlib import Path
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out = Path("debug") / f"{ts}_{listing_type}_page{page_num}.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html, encoding="utf-8")
+    console.print(f"  [yellow]Raw HTML saved → {out}  (open to inspect)[/yellow]")
 
 
 def _has_next_page(html: str) -> bool:
@@ -103,6 +120,7 @@ async def paginate_search(
             hrefs = _extract_listing_urls(html)
             if not hrefs:
                 console.print(f"  [yellow]No listings found on page {page_num}; stopping.[/yellow]")
+                _save_debug_html(html, listing_type, page_num)
                 break
 
             for href in hrefs:
@@ -113,8 +131,9 @@ async def paginate_search(
                     if len(collected) >= max_results:
                         break
 
-            if not _has_next_page(html) or not hrefs:
-                console.print(f"  [green]No more pages after page {page_num}.[/green]")
+            console.print(f"  [green]Collected {len(collected)} {listing_type} so far.[/green]")
+
+            if len(collected) >= max_results:
                 break
 
             page_num += 1
