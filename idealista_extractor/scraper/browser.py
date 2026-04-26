@@ -57,11 +57,16 @@ _STEALTH_JS = """
 
 
 def _is_datadome_page(content: str) -> bool:
-    # Only match the actual block/challenge page, NOT normal pages that
-    # reference datadome in their JS (which every Idealista page does).
+    # Matches both the Spanish hard-block page AND the DataDome CAPTCHA iframe.
+    # Does NOT match normal Idealista pages (which only reference "datadome" in JS).
     markers = [
+        # Spanish hard-block page
         "se ha detectado un uso indebido",
         "el acceso se ha bloqueado",
+        # DataDome CAPTCHA iframe challenge
+        "captcha-delivery.com",
+        "datadome captcha",
+        # Other DataDome interstitial patterns
         "interstitial-datadome",
         "dd_referrer",
         "Please enable JS and disable any ad blocker",
